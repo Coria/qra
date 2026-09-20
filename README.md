@@ -1,4 +1,4 @@
-# Quantitative Review Agent
+# QRA — Quantitative Review Agent
 
 这是一个面向量化策略回测报告的审查 agent。当前版本聚焦 QuantStats HTML 报告的解析、可复现性校验、指标重算、异常检测、归因和 LLM 草稿评审，并通过 LangGraph 固化流程、通过 MCP 暴露工具能力。
 
@@ -80,7 +80,7 @@ integrity_check: 校验报告版本、原始收益、策略版本、数据版本
 - **异常检测**：检查回撤符号、极端收益/波动关系、异常胜率、近期波动放大、超过 5 个标准差的日收益等。
 - **归因分析**：计算月度正负贡献和最大回撤日期；有 `benchmark` 时计算基准 beta；有 `factor_*` 列时做简单因子暴露估计。
 - **订单分析**：解析 `orders.csv`，计算交易活跃度、名义成交额、费用率、集中度；使用 FIFO 匹配买入/卖出订单，输出已实现盈亏、胜率、持仓天数、月度实现盈亏和未匹配卖出。
-- **历史报告 RAG**：读取 `data/history/*.jsonl`，按 TF-IDF 相似度召回相似历史报告，作为 LLM 改进建议参考。
+- **历史报告 RAG**：读取 `workspace/history/*.jsonl`，按 TF-IDF 相似度召回相似历史报告，作为 LLM 改进建议参考。
 - **LLM 草稿**：调用 OpenAI-compatible 接口生成“总体结论、总体评价、交易风格特征、异常与风险、特征解读、改进方向、人审清单”。
 - **LLM 受限模式**：即使缺少原始收益或元数据，也会基于已有报告和订单数据给出审查意见；LLM 失败时回退到简洁结构化摘要。
 - **人审节点**：LLM 草稿不会自动视为终稿；未使用 `--auto-approve` 时保持 pending 状态。
@@ -105,13 +105,28 @@ src/qra_agent/
 
 schemas/                 qra.backtest_bundle/v1 JSON Schema
 tools/                   独立工具，例如 VectorBT -> bundle 转换器
-bundle/                  实际回测数据包和数据集
-data/history/            历史报告摘要 JSONL
+workspace/bundles/       用户自有 bundle 与过程数据集，默认不入库
+workspace/history/       历史报告摘要 JSONL，默认不入库
 docs/ARCHITECTURE.md     架构说明
-examples/                元数据示例
+examples/reports/        QuantStats 示例报告
+examples/data/           示例订单
+examples/                bundle 与元数据示例
 tests/                   单元测试
-skills/qra-backtest-review/ 标准 Skill 封装
+skills/qra/              标准 Skill 封装
 ```
+
+## 公共目录约定
+
+仓库中只保留源码、schema、文档、测试和少量可复核示例。用户回测数据、700 MB 级别的
+过程数据、审查输出和日志都属于运行资产：
+
+```text
+examples/          可提交的小型样例，用于演示格式和测试
+workspace/         用户私有回测 bundle、数据集和历史经验记录
+artifacts/         CLI 输出与运行日志
+```
+
+`workspace/` 默认在 `.gitignore` 中排除，避免把私有策略、行情快照或大文件提交到公共仓库。
 
 ## 安装
 
@@ -129,15 +144,17 @@ python -m pip install -e . --no-deps
 $env:PYTHONPATH="src"
 ```
 
+安装完成后，`python -m qra_agent.cli ...` 与短命令 `qra analyze ...` 等价。
+
 ## 分析回测报告
 
 ### 报告-only 模式
 
 ```powershell
-conda run -n qra python -m qra_agent.cli analyze --report test/strategy_report.html --output artifacts/review.json
+conda run -n qra python -m qra_agent.cli analyze --report examples/reports/strategy_report.html --output artifacts/review.json
 ```
 
-当前 `test/strategy_report.html` 是 QuantStats HTML，但没有嵌入原始收益序列，也没有附带策略元数据，因此会进入可复现校验并输出打回理由。
+当前 `examples/reports/strategy_report.html` 是 QuantStats HTML，但没有嵌入原始收益序列，也没有附带策略元数据，因此会进入可复现校验并输出打回理由。
 
 ### HTML 审查报告
 
@@ -145,8 +162,8 @@ conda run -n qra python -m qra_agent.cli analyze --report test/strategy_report.h
 
 ```powershell
 conda run -n qra python -m qra_agent.cli analyze `
-  --report test/strategy_report.html `
-  --orders test/orders.csv `
+  --report examples/reports/strategy_report.html `
+  --orders examples/data/orders.csv `
   --output artifacts/review_orders.html
 ```
 
@@ -184,7 +201,7 @@ HTML 输出的阅读顺序与流程一致：状态卡 → 可复现性 → 指�
 
 ```powershell
 conda run -n qra python -m qra_agent.cli analyze `
-  --report test/strategy_report.html `
+  --report examples/reports/strategy_report.html `
   --returns path/to/returns.csv `
   --orders path/to/orders.csv `
   --metadata examples/strategy.metadata.json `
@@ -195,8 +212,8 @@ conda run -n qra python -m qra_agent.cli analyze `
 
 ```powershell
 conda run -n qra python -m qra_agent.cli analyze `
-  --report test/strategy_report.html `
-  --orders test/orders.csv `
+  --report examples/reports/strategy_report.html `
+  --orders examples/data/orders.csv `
   --output artifacts/review_orders.json
 ```
 
@@ -326,7 +343,7 @@ bundle_path = write_bundle(
 ```
 
 完整参数、命令行调用、自定义过程数据和其他项目部署方法见
-`tools/README_write_bundle.md`。
+`tools/vectorbt_to_bundle.md`。
 
 ## LLM 配置
 
@@ -336,12 +353,12 @@ LLM 只负责解读和归纳，不负责重算指标。`draft_summary` 会把 `p
 异常与风险、特征解读、改进方向和人审清单。如果调用失败，节点会使用确定性 fallback，
 流程不会中断。
 
-当前默认连接内网 llama.cpp 服务：
+默认使用本机 OpenAI-compatible 服务，内网或远端服务通过环境变量覆盖：
 
 ```text
-QRA_LLM_BASE_URL=http://192.168.18.182:9931/v1
-QRA_LLM_API_KEY=123456
-QRA_LLM_MODEL=qwen3.8-27b-iq2s
+QRA_LLM_BASE_URL=http://127.0.0.1:8080/v1
+QRA_LLM_API_KEY=EMPTY
+QRA_LLM_MODEL=local-model
 QRA_LLM_TIMEOUT=300
 ```
 
@@ -400,7 +417,7 @@ MCP 工具：
 
 ## 历史报告 RAG
 
-在 `data/history/*.jsonl` 中每行放一个 JSON 对象，例如：
+在 `workspace/history/*.jsonl` 中每行放一个 JSON 对象，例如：
 
 ```json
 {"strategy_id":"momentum-v1","benchmark":"000001.SH","sharpe":0.93,"max_drawdown":-0.3973,"lessons":"控制换手和尾部风险"}
@@ -510,18 +527,18 @@ conda run -n qra python -m unittest discover -s tests -v
 本项目已经提供标准 Skill 形式：
 
 ```text
-skills/qra-backtest-review/SKILL.md
-skills/qra-backtest-review/agents/openai.yaml
+skills/qra/SKILL.md
+skills/qra/agents/openai.yaml
 ```
 
-其他 agent（例如 Hermes、Claw、Codex）可以直接引用 `skills/qra-backtest-review/SKILL.md`，
-或将整个 `qra-backtest-review` 目录复制到自己的 skills 目录中使用。
+其他 agent（例如 Hermes、Claw、Codex）可以直接引用 `skills/qra/SKILL.md`，
+或将整个 `qra` 目录复制到自己的 skills 目录中使用。
 
 它会把回测审查包装成统一动作：
 
 ```powershell
 conda run -n qra python -m qra_agent.cli analyze `
-  --bundle bundle/backtest.bundle.json `
+  --bundle workspace/bundles/backtest.bundle.json `
   --output artifacts/bundle_review.html `
   --llm-timeout 600
 ```
