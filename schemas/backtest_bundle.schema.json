@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "qra.backtest_bundle/v1",
+  "title": "QRA Backtest Bundle",
+  "description": "Portable input bundle exported by a backtest engine for deterministic strategy review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report", "metadata", "datasets"],
+  "properties": {
+    "schema_version": {
+      "const": "qra.backtest_bundle/v1"
+    },
+    "bundle_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "engine": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engine_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 1
+    },
+    "calendar": {
+      "type": "string",
+      "minLength": 1
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "format"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "format": {
+          "const": "quantstats_html"
+        },
+        "checksum": {
+          "type": "string"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "strategy_id",
+        "strategy_version",
+        "data_version",
+        "universe",
+        "parameters",
+        "transaction_cost",
+        "rebalance_rule"
+      ],
+      "properties": {
+        "strategy_id": { "type": "string", "minLength": 1 },
+        "strategy_version": { "type": "string", "minLength": 1 },
+        "data_version": { "type": "string", "minLength": 1 },
+        "universe": {},
+        "parameters": { "type": "object" },
+        "transaction_cost": { "type": "object" },
+        "rebalance_rule": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "datasets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "returns": { "$ref": "#/$defs/dataset" },
+        "benchmark": { "$ref": "#/$defs/dataset" },
+        "orders": { "$ref": "#/$defs/dataset" },
+        "positions": { "$ref": "#/$defs/dataset" },
+        "nav": { "$ref": "#/$defs/dataset" },
+        "market_data": { "$ref": "#/$defs/dataset" },
+        "corporate_actions": { "$ref": "#/$defs/dataset" }
+      }
+    }
+  },
+  "$defs": {
+    "dataset": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "format"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "format": { "type": "string", "minLength": 1 },
+            "checksum": { "type": "string" },
+            "date_format": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["records"],
+          "properties": {
+            "records": {
+              "type": "array",
+              "items": { "type": "object" }
+            },
+            "date_format": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}

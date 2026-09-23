@@ -1,0 +1,7 @@
+interface:
+  display_name: "QRA"
+  short_description: "Audit quantitative strategy reports"
+  default_prompt: "Use $qra to review my backtest bundle and produce an HTML report."
+
+policy:
+  allow_implicit_invocation: true
