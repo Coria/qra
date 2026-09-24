@@ -25,12 +25,12 @@ def summarize_with_llm(
         "If metrics could not be recomputed, say so explicitly. "
         "Do not enumerate every metric. Quote at most two or three key figures only when they support a judgement. "
         "Produce detailed Chinese output with sections: "
-        "总体结论, 总体评价, 交易风格特征, 异常与风险, 特征解读, 改进方向, 人审清单."
+        "人审清单, 交易风格特征, 异常与风险, 改进方向, 特征解读, 总体结论, 总体评价."
     )
     response = client.chat.completions.create(
         model=model,
         temperature=0.1,
-        max_tokens=1200,
+        max_tokens=6400,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": facts["prompt"]},
