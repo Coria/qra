@@ -115,6 +115,33 @@ bundle_path = write_bundle(
 )
 ```
 
+### 传入 benchmark 数据
+
+推荐直接传入 benchmark 收益序列：
+
+```python
+benchmark = pd.DataFrame({
+    "date": pd.to_datetime(["2024-01-02", "2024-01-03"]),
+    "benchmark": [0.0004, -0.0001],
+})
+
+bundle_path = write_bundle(
+    portfolio=portfolio,
+    report_path="artifacts/report.html",
+    metadata=metadata,
+    output_path="artifacts/backtest.bundle.json",
+    benchmark=benchmark,
+)
+```
+
+命令行可以使用：
+
+```powershell
+python tools/vectorbt_to_bundle.py ... --benchmark benchmark.csv
+```
+
+benchmark 输入支持 `date,benchmark` 长表；若没有 `date` 列，也会尝试使用 DatetimeIndex。输入可以是收益率，也可以是价格/指数点位；价格型序列会自动转换为算术收益率。
+
 支持的数据集名称和最小字段：
 
 | 名称 | 最小字段 |
@@ -124,7 +151,7 @@ bundle_path = write_bundle(
 | `orders` | `timestamp`, `symbol`, `size`, `price`, `side` |
 | `positions` | `date`, `symbol`, `quantity`, `market_price` |
 | `nav` | `date`, `nav` |
-| `market_data` | `date`, `symbol`, `close` |
+| `market_data` | `date`, `symbol`, `close`；可选 `open`, `high`, `low` |
 | `corporate_actions` | `date`, `symbol`, `action` |
 
 `datasets` 中传入了同名数据集时，会覆盖自动提取结果。

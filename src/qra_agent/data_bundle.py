@@ -144,6 +144,7 @@ def bundle_returns_frame(bundle: dict[str, Any]) -> pd.DataFrame | None:
     if benchmark is not None:
         benchmark = benchmark[["date", "benchmark"]].sort_values("date")
         benchmark["benchmark"] = pd.to_numeric(benchmark["benchmark"], errors="coerce")
+        benchmark["benchmark"] = benchmark_to_returns(benchmark["benchmark"])
         returns = returns.join(benchmark.set_index("date"), how="outer")
         if "strategy" in returns.columns:
             returns["strategy"] = returns["strategy"].fillna(0.0)
@@ -154,6 +155,15 @@ def bundle_orders_frame(bundle: dict[str, Any]) -> pd.DataFrame | None:
     """Return the normalized orders dataset when the bundle supplies one."""
     orders = bundle_dataset_frame(bundle, "orders")
     return normalize_orders(orders) if orders is not None else None
+
+
+def benchmark_to_returns(values: pd.Series) -> pd.Series:
+    """Convert a benchmark price-like series to arithmetic returns."""
+    clean = pd.to_numeric(values, errors="coerce")
+    magnitude = float(clean.abs().quantile(0.95))
+    if magnitude <= 0.5:
+        return clean
+    return clean.sort_index().pct_change(fill_method=None).fillna(0.0)
 
 
 def bundle_report_path(bundle: dict[str, Any]) -> str:
@@ -193,4 +203,4 @@ def _load_tabular(path: Path) -> pd.DataFrame:
         return pd.read_parquet(path)
     if suffix in {".xlsx", ".xls"}:
         return pd.read_excel(path)
-    return pd.read_csv(path)
+    return pd.read_csv(path, comment="#")

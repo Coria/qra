@@ -240,6 +240,8 @@ conda run -n qra python -m qra_agent.cli analyze `
 
 ```text
 HTML review written to artifacts\bundle_review.html
+
+同时会先在同目录生成 `artifacts\bundle_review_interactive.html`，再生成主审阅报告。互动页在一页内提供净值、回撤、每日仓位权重、每日盈亏 Nσ 参考线、盈亏 Top-K 集中度和标的持仓时间线。
 ```
 
 `schema` 定义在 `schemas/backtest_bundle.schema.json`，最小结构如下：
@@ -328,6 +330,7 @@ rebalance_rule
 `tools/vectorbt_to_bundle.py` 是独立小工具，可以把 vectorbt `Portfolio` 结果导出成
 `qra.backtest_bundle/v1`。它会自动提取 returns、orders、positions、nav 和 market_data，
 并要求提供一份已生成的 QuantStats HTML 报告。
+可以通过 `benchmark=benchmark_df` 或命令行 `--benchmark benchmark.csv` 额外导出 `date,benchmark` 基准收益数据。若传入的是价格/指数点位序列，工具会自动转换为算术收益率；交互分析页会自动使用该数据绘制基准净值与回撤。
 
 典型调用：
 

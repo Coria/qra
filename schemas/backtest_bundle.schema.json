@@ -82,11 +82,17 @@
       "additionalProperties": false,
       "properties": {
         "returns": { "$ref": "#/$defs/dataset" },
-        "benchmark": { "$ref": "#/$defs/dataset" },
+        "benchmark": {
+          "allOf": [{ "$ref": "#/$defs/dataset" }],
+          "description": "Daily benchmark arithmetic returns with columns date and benchmark."
+        },
         "orders": { "$ref": "#/$defs/dataset" },
         "positions": { "$ref": "#/$defs/dataset" },
         "nav": { "$ref": "#/$defs/dataset" },
-        "market_data": { "$ref": "#/$defs/dataset" },
+        "market_data": {
+          "allOf": [{ "$ref": "#/$defs/dataset" }],
+          "description": "Daily symbol prices with required date, symbol, and close; optional open, high, and low enable candlesticks."
+        },
         "corporate_actions": { "$ref": "#/$defs/dataset" }
       }
     }

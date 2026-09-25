@@ -104,6 +104,7 @@ def parse_report(report_path: str | Path) -> dict[str, Any]:
     date_range_match = re.search(r"(\d{1,2} \w+,\s*\d{4})\s*-\s*(\d{1,2} \w+,\s*\d{4})", header)
 
     metrics: dict[str, float] = {}
+    benchmark_metrics: dict[str, float] = {}
     strategy_columns: list[str] = []
     target_table = None
     for table in soup.find_all("table"):
@@ -134,6 +135,15 @@ def parse_report(report_path: str | Path) -> dict[str, Any]:
             if _is_percent(canonical) and ("%" in cells[-1] or "﹪" in cells[-1]):
                 metrics[canonical] = value / 100
 
+            if len(cells) >= 3:
+                try:
+                    benchmark_value = _parse_number(cells[1])
+                except ValueError:
+                    benchmark_value = float("nan")
+                if not benchmark_value != benchmark_value:
+                    benchmark_metrics[canonical] = benchmark_value
+                    if _is_percent(canonical) and "%" in cells[1]:
+                        benchmark_metrics[canonical] = benchmark_value / 100
     eoy_table = None
     for table in soup.find_all("table"):
         table_text = " ".join(table.stripped_strings)
@@ -163,5 +173,6 @@ def parse_report(report_path: str | Path) -> dict[str, Any]:
         "period_end": date_range_match.group(2) if date_range_match else None,
         "strategy_columns": strategy_columns,
         "parsed_metrics": metrics,
+        "benchmark_metrics": benchmark_metrics,
         "eoy_returns": eoy_returns,
     }

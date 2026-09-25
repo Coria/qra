@@ -56,6 +56,7 @@ def portfolio_to_bundle(
     *,
     close: pd.DataFrame | pd.Series | None = None,
     returns_source: str = "value",
+    benchmark: pd.DataFrame | pd.Series | None = None,
     datasets: dict[str, pd.DataFrame] | None = None,
     generate_report: bool = False,
     inline: bool = False,
@@ -102,6 +103,8 @@ def portfolio_to_bundle(
         "market_data": market_data,
     }
     frames.update(datasets or {})
+    if benchmark is not None and "benchmark" not in frames:
+        frames["benchmark"] = _benchmark_frame(benchmark)
     descriptors: dict[str, Any] = {}
     for name, frame in frames.items():
         if frame is None:
@@ -130,6 +133,7 @@ def write_bundle(
     *,
     close: pd.DataFrame | pd.Series | None = None,
     returns_source: str = "value",
+    benchmark: pd.DataFrame | pd.Series | None = None,
     datasets: dict[str, pd.DataFrame] | None = None,
     generate_report: bool = False,
     inline: bool = False,
@@ -143,6 +147,7 @@ def write_bundle(
         metadata=metadata,
         close=close,
         returns_source=returns_source,
+        benchmark=benchmark,
         datasets=datasets,
         generate_report=generate_report,
         inline=inline,
@@ -314,7 +319,8 @@ def _close_frame(value: Any) -> pd.DataFrame | None:
     if not isinstance(value, pd.DataFrame):
         return None
     if {"date", "symbol", "close"}.issubset(value.columns):
-        frame = value[["date", "symbol", "close"]].copy()
+        optional = [column for column in ("open", "high", "low") if column in value.columns]
+        frame = value[["date", "symbol", "close", *optional]].copy()
     else:
         reset = value.reset_index()
         date_column = reset.columns[0]
@@ -322,6 +328,9 @@ def _close_frame(value: Any) -> pd.DataFrame | None:
         frame = frame.rename(columns={date_column: "date"})
     frame["date"] = pd.to_datetime(frame["date"], errors="raise")
     frame["close"] = pd.to_numeric(frame["close"], errors="coerce")
+    for column in ("open", "high", "low"):
+        if column in frame.columns:
+            frame[column] = pd.to_numeric(frame[column], errors="coerce")
     frame["symbol"] = frame["symbol"].astype(str)
     return frame.dropna(subset=["close"]).sort_values(["date", "symbol"])
 
@@ -469,6 +478,38 @@ def _load_close(path: Path | None) -> pd.DataFrame | None:
     return _close_frame(frame)
 
 
+def _benchmark_frame(value: pd.DataFrame | pd.Series) -> pd.DataFrame:
+    """Normalize benchmark prices or returns to date,benchmark returns."""
+    if isinstance(value, pd.Series):
+        index = pd.to_datetime(value.index, errors="raise")
+        frame = pd.DataFrame({"date": index, "benchmark": pd.to_numeric(value, errors="coerce")})
+    else:
+        frame = _normalize_columns(value.copy())
+        if "date" not in frame.columns:
+            frame = frame.reset_index().rename(columns={"index": "date"})
+        if "benchmark" not in frame.columns:
+            value_columns = [column for column in frame.columns if column != "date"]
+            if len(value_columns) != 1:
+                raise ValueError("benchmark dataset must have a 'benchmark' column or exactly one value column")
+            frame = frame.rename(columns={value_columns[0]: "benchmark"})
+        frame = pd.DataFrame({
+            "date": pd.to_datetime(frame["date"], errors="raise"),
+            "benchmark": pd.to_numeric(frame["benchmark"], errors="coerce"),
+        })
+    values = frame["benchmark"]
+    if float(values.abs().quantile(0.95)) > 0.5:
+        frame["benchmark"] = values.pct_change(fill_method=None).fillna(0.0)
+    return (
+        frame.dropna(subset=["date", "benchmark"])
+        .sort_values("date", kind="stable")
+        .reset_index(drop=True)[["date", "benchmark"]]
+    )
+
+
+def _load_benchmark(path: Path) -> pd.DataFrame:
+    return _benchmark_frame(pd.read_csv(path, comment="#"))
+
+
 def _load_dataset(path: str) -> pd.DataFrame:
     return pd.read_csv(path)
 
@@ -509,6 +550,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--generate-report", action="store_true", help="Create the report with quantstats if it does not exist")
     parser.add_argument("--output", required=True, help="Output bundle JSON path")
     parser.add_argument("--close", help="Optional wide or long close-price CSV")
+    parser.add_argument("--benchmark", help="Optional benchmark returns CSV with date,benchmark")
     parser.add_argument(
         "--dataset",
         action="append",
@@ -556,12 +598,14 @@ def main() -> None:
         args.output,
         close=close,
         returns_source=args.returns_source,
+        benchmark=_load_benchmark(Path(args.benchmark)) if args.benchmark else None,
         datasets=datasets,
         generate_report=args.generate_report,
         inline=args.inline,
         bundle_options=bundle_options,
     )
-    dataset_names = ", ".join(sorted(datasets)) if datasets else "portfolio-derived"
+    derived = {"benchmark"} if args.benchmark else set()
+    dataset_names = ", ".join(sorted(set(datasets) | derived)) if datasets or derived else "portfolio-derived"
     print(f"Bundle written to {output_path}")
     print(f"Datasets: {dataset_names}")
 
