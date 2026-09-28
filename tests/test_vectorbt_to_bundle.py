@@ -11,7 +11,7 @@ import pandas as pd
 TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
 sys.path.insert(0, str(TOOLS_DIR))
 
-from vectorbt_to_bundle import _benchmark_frame, _close_frame, portfolio_to_bundle
+from vectorbt_to_bundle import _benchmark_frame, _close_frame, _lookup_market_price, portfolio_to_bundle
 
 
 class VectorBTBundleTests(unittest.TestCase):
@@ -92,6 +92,28 @@ class VectorBTBundleTests(unittest.TestCase):
         normalized = _close_frame(frame)
         self.assertEqual(list(normalized.columns), ["date", "symbol", "close", "open", "high", "low"])
         self.assertEqual(normalized.iloc[-1]["high"], 11.0)
+
+    def test_lookup_market_price_uses_backward_match(self) -> None:
+        close = pd.DataFrame(
+            {
+                "date": pd.to_datetime([
+                    "2024-01-02",
+                    "2024-01-02",
+                    "2024-01-03",
+                    "2024-01-04",
+                ]),
+                "symbol": ["AAPL", "MSFT", "AAPL", "AAPL"],
+                "close": [10.0, 20.0, 11.0, 12.0],
+            }
+        )
+        positions = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2024-01-03", "2024-01-02", "2024-01-04"]),
+                "symbol": ["AAPL", "MSFT", "AAPL"],
+            }
+        )
+        result = _lookup_market_price(positions, close)
+        self.assertEqual(result.tolist(), [11.0, 20.0, 12.0])
 
 
 if __name__ == "__main__":

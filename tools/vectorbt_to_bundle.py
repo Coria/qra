@@ -336,15 +336,23 @@ def _close_frame(value: Any) -> pd.DataFrame | None:
 
 
 def _lookup_market_price(positions: pd.DataFrame, close: pd.DataFrame) -> pd.Series:
-    close = close.sort_values("date")
-    return positions.apply(lambda row: _last_close(close, row["symbol"], row["date"]), axis=1)
-
-
-def _last_close(close: pd.DataFrame, symbol: str, date: pd.Timestamp) -> float | None:
-    subset = close[(close["symbol"] == symbol) & (close["date"] <= date)]
-    if subset.empty:
-        return None
-    return float(subset.sort_values("date")["close"].iloc[-1])
+    if positions.empty or close.empty:
+        return pd.Series(np.nan, index=positions.index, dtype=float)
+    ordered_positions = positions.sort_values("date", kind="stable")
+    ordered_close = close[["date", "symbol", "close"]].sort_values("date", kind="stable")
+    matched = pd.merge_asof(
+        ordered_positions,
+        ordered_close,
+        on="date",
+        by="symbol",
+        direction="backward",
+        allow_exact_matches=True,
+    )
+    result = pd.Series(
+        pd.to_numeric(matched["close"], errors="coerce").to_numpy(dtype=float),
+        index=ordered_positions.index,
+    )
+    return result.reindex(positions.index)
 
 
 def _normalize_columns(frame: pd.DataFrame) -> pd.DataFrame:

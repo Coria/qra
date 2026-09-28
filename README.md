@@ -7,6 +7,13 @@
 LLM 与日志 / MCP / RAG / 订单格式 / A2A / 常见问题 / 限制 / 测试 / Skill
 ```
 
+## 主要输出内容
+### [策略分析审查报告](https://raw.githack.com/Coria/qra/main/workspace/results/bundle_review.html)
+
+### [策略交易详情互动分析](https://raw.githack.com/Coria/qra/main/workspace/results/bundle_review_interactive.html)
+
+
+
 ## Agent 当前做什么
 
 项目把“回测报告”变成“可审计的审查状态”，而不是让 LLM 直接看一份 HTML 就给结论。
