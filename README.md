@@ -9,8 +9,10 @@ LLM 与日志 / MCP / RAG / 订单格式 / A2A / 常见问题 / 限制 / 测试 
 
 ## 主要输出内容
 ### [策略分析审查报告](https://raw.githack.com/Coria/qra/main/workspace/results/bundle_review.html)
+![策略分析审查报告](workspace/results/bundle_review.jpeg)
 
 ### [策略交易详情互动分析](https://raw.githack.com/Coria/qra/main/workspace/results/bundle_review_interactive.html)
+![策略交易详情互动分析](workspace/results/bundle_review_interactive.jpeg)
 
 
 
