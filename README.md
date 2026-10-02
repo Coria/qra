@@ -248,9 +248,10 @@ conda run -n qra python -m qra_agent.cli analyze `
 执行成功后会输出类似：
 
 ```text
+Interactive analysis written to artifacts\bundle_review_interactive.html
 HTML review written to artifacts\bundle_review.html
 
-同时会先在同目录生成 `artifacts\bundle_review_interactive.html`，再生成主审阅报告。互动页在一页内提供净值、回撤、每日仓位权重、每日盈亏 Nσ 参考线、盈亏 Top-K 集中度和标的持仓时间线。
+interactive 报告会在 LLM 审查开始前写入；主审阅报告在图流程完成后写入。互动页在一页内提供净值、回撤、每日仓位权重、每日盈亏 Nσ 参考线、盈亏 Top-K 集中度和标的持仓时间线。
 ```
 
 `schema` 定义在 `schemas/backtest_bundle.schema.json`，最小结构如下：

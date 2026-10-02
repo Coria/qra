@@ -10,7 +10,6 @@ from loguru import logger
 
 from .html_report import render_review_html
 from .logging_setup import configure_logging
-from .interactive_report import build_interactive_data, render_interactive_html
 from .data_bundle import (
     bundle_info,
     bundle_orders_frame,
@@ -63,6 +62,12 @@ def _state(args: argparse.Namespace) -> dict:
     orders_frame = bundle_orders_frame(bundle) if bundle else None
     metadata = bundle.get("metadata", {}) if bundle else {}
     bundle_path = bundle_info(bundle)
+    output_path = Path(args.output)
+    interactive_path = (
+        output_path.with_name(f"{output_path.stem}_interactive{output_path.suffix.lower()}")
+        if output_path.suffix.lower() in {".html", ".htm"}
+        else None
+    )
 
     return {
         "report_path": report_path,
@@ -70,6 +75,7 @@ def _state(args: argparse.Namespace) -> dict:
         "returns_path": args.returns,
         "orders_path": args.orders,
         "metadata_path": args.metadata,
+        "interactive_path": str(interactive_path) if interactive_path else None,
         "metadata": metadata,
         "bundle": bundle,
         "bundle_info": bundle_path,
@@ -105,14 +111,9 @@ def main() -> None:
     serializable = {
         key: value
         for key, value in final_state.items()
-        if key not in {"returns_frame", "orders_frame", "bundle"}
+        if key not in {"returns_frame", "orders_frame", "bundle", "interactive_path"}
     }
     if output_path.suffix.lower() in {".html", ".htm"}:
-        interactive_path = output_path.with_name(f"{output_path.stem}_interactive{output_path.suffix.lower()}")
-        interactive_data = build_interactive_data(final_state)
-        interactive_path.write_text(render_interactive_html(interactive_data), encoding="utf-8")
-        print(f"Interactive analysis written to {interactive_path}")
-        logger.info("Interactive output written | output_path={} | format=html", interactive_path)
         output_path.write_text(render_review_html(serializable), encoding="utf-8")
         print(f"HTML review written to {output_path}")
         logger.info("Review output written | output_path={} | format=html", output_path)

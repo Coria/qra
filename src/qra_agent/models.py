@@ -12,6 +12,7 @@ class AgentState(TypedDict, total=False):
     returns_path: str | None
     orders_path: str | None
     metadata_path: str | None
+    interactive_path: str | None
     auto_approve: bool
     llm_base_url: str
     llm_api_key: str

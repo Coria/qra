@@ -14,6 +14,7 @@ from loguru import logger
 from .anomaly import detect_anomalies
 from .attribution import run_attribution
 from .integrity import check_integrity
+from .interactive_report import build_interactive_data, render_interactive_html
 from .llm import summarize_with_llm
 from .metrics import calculate_metrics, load_returns
 from .models import AgentState
@@ -131,6 +132,19 @@ def attribution_node(state: AgentState) -> AgentState:
     """Compute simple period and factor attribution from available data."""
     attribution = run_attribution(state.get("returns_frame"))
     return {"attribution": attribution, "status": "ok"}
+
+
+def interactive_report_node(state: AgentState) -> AgentState:
+    """Write the interactive report before starting the potentially slow LLM call."""
+    interactive_path = state.get("interactive_path")
+    if not interactive_path:
+        return {}
+
+    interactive_data = build_interactive_data(state)
+    Path(interactive_path).write_text(render_interactive_html(interactive_data), encoding="utf-8")
+    print(f"Interactive analysis written to {interactive_path}")
+    logger.info("Interactive output written | output_path={} | format=html", interactive_path)
+    return {"interactive_path": interactive_path}
 
 
 def draft_summary_node(state: AgentState) -> AgentState:
@@ -330,6 +344,7 @@ def build_graph() -> StateGraph:
     graph.add_node("recompute_metrics", recompute_metrics_node)
     graph.add_node("anomaly_detection", anomaly_detection_node)
     graph.add_node("attribution", attribution_node)
+    graph.add_node("interactive_report", interactive_report_node)
     graph.add_node("draft_summary", draft_summary_node)
     graph.add_node("human_review", human_review_node)
     graph.set_entry_point("parse_report")
@@ -343,10 +358,11 @@ def build_graph() -> StateGraph:
     )
     graph.add_edge("recompute_metrics", "anomaly_detection")
     graph.add_edge("anomaly_detection", "attribution")
-    graph.add_edge("attribution", "draft_summary")
+    graph.add_edge("attribution", "interactive_report")
+    graph.add_edge("interactive_report", "draft_summary")
     graph.add_edge("draft_summary", "human_review")
     graph.add_edge("human_review", END)
-    graph.add_edge("reproducibility_check", "draft_summary")
+    graph.add_edge("reproducibility_check", "interactive_report")
     return graph.compile()
 
 

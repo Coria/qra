@@ -12,12 +12,13 @@ parse_report
     -> orders_analysis
   -> integrity_check
     -> reproducibility_check          # 缺数据版本/参数/原始收益时标记打回
-    -> draft_summary -> human_review # 受限模式下仍输出 LLM 审查意见
+    -> interactive_report -> draft_summary -> human_review
     -> recompute_metrics
       -> anomaly_detection
         -> attribution
-          -> draft_summary
-            -> human_review
+          -> interactive_report
+            -> draft_summary
+              -> human_review
 ```
 
 ## 工具
